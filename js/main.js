@@ -1,139 +1,151 @@
-﻿/* main.js — Lógica de la calculadora */
+﻿// estado de la calculadora 
+let pantalla = '0';
+let operador = null;
+let primerNumero = null;
+let esperandoSegundo = false;
 
-const state = {
-    current:          '0',
-    operator:         null,
-    firstOperand:     null,
-    waitingForSecond: false
-};
+// elementos de la interfaz 
+const display = document.getElementById('display');
+const expresion = document.getElementById('display-expression');
 
-const display     = document.getElementById('display');
-const exprDisplay = document.getElementById('display-expression');
+// helpers basicos 
+const operadores = ['+', '-', '*', '/'];
+const simbolos = { '+': '+', '-': '−', '*': '×', '/': '÷' };
 
-const updateDisplay = (value) => { display.value = String(value); };
+function mostrar(valor) {
+    display.value = String(valor);
+}
 
-const formatResult = (num) => {
-    if (!isFinite(num)) return 'Error';
-    return String(parseFloat(num.toPrecision(12)));
-};
+function formatear(numero) {
+    if (!isFinite(numero)) return 'Error';
+    return String(parseFloat(numero.toPrecision(12)));
+}
 
-const handleNumber = (digit) => {
-    if (state.waitingForSecond) {
-        state.current = digit;
-        state.waitingForSecond = false;
+function resetear() {
+    pantalla = '0';
+    operador = null;
+    primerNumero = null;
+    esperandoSegundo = false;
+    expresion.textContent = '';
+    mostrar('0');
+}
+
+function errorDivision() {
+    mostrar('Error');
+    expresion.textContent = 'division por cero';
+    pantalla = '0';
+    operador = null;
+    primerNumero = null;
+    esperandoSegundo = false;
+}
+
+function calcular(a, b, op) {
+    if (op === '+') return a + b;
+    if (op === '-') return a - b;
+    if (op === '*') return a * b;
+    if (op === '/') return b === 0 ? null : a / b;
+    return b;
+}
+
+// entrada de numeros 
+function agregarNumero(valor) {
+    if (esperandoSegundo) {
+        pantalla = valor;
+        esperandoSegundo = false;
     } else {
-        state.current = state.current === '0' ? digit : state.current + digit;
+        pantalla = pantalla === '0' ? valor : pantalla + valor;
     }
-    updateDisplay(state.current);
-};
+    mostrar(pantalla);
+}
 
-const handleDecimal = () => {
-    if (state.waitingForSecond) {
-        state.current = '0.';
-        state.waitingForSecond = false;
-        updateDisplay(state.current);
+function agregarPunto() {
+    if (esperandoSegundo) {
+        pantalla = '0.';
+        esperandoSegundo = false;
+        mostrar(pantalla);
         return;
     }
-    if (!state.current.includes('.')) {
-        state.current += '.';
-        updateDisplay(state.current);
+    if (!pantalla.includes('.')) {
+        pantalla += '.';
+        mostrar(pantalla);
     }
-};
+}
 
-const calculate = (a, b, op) => {
-    switch (op) {
-        case '+': return a + b;
-        case '-': return a - b;
-        case '*': return a * b;
-        case '/': return b !== 0 ? a / b : null;
-        default:  return b;
-    }
-};
+// elegir operador y soportar operaciones encadenadas 
+function setOperador(op) {
+    const actual = parseFloat(pantalla);
 
-const handleOperator = (op) => {
-    const current = parseFloat(state.current);
-    if (state.operator && !state.waitingForSecond) {
-        const result = calculate(state.firstOperand, current, state.operator);
-        if (result === null) { showError(); return; }
-        state.current = formatResult(result);
-        updateDisplay(state.current);
-        state.firstOperand = parseFloat(state.current);
+    if (operador && !esperandoSegundo) {
+        const parcial = calcular(primerNumero, actual, operador);
+        if (parcial === null) {
+            errorDivision();
+            return;
+        }
+        pantalla = formatear(parcial);
+        primerNumero = parseFloat(pantalla);
+        mostrar(pantalla);
     } else {
-        state.firstOperand = current;
+        primerNumero = actual;
     }
-    state.operator         = op;
-    state.waitingForSecond = true;
-    const symbols = { '+': '+', '-': '−', '*': '×', '/': '÷' };
-    exprDisplay.textContent = `${state.firstOperand} ${symbols[op]}`;
-};
 
-const handleEquals = () => {
-    if (state.operator === null || state.waitingForSecond) return;
+    operador = op;
+    esperandoSegundo = true;
+    expresion.textContent = `${primerNumero} ${simbolos[op]}`;
+}
 
-    const a      = state.firstOperand;
-    const b      = parseFloat(state.current);
-    const result = calculate(a, b, state.operator);
+// resolver resultado 
+function resolver() {
+    if (!operador || esperandoSegundo) return;
 
-    if (result === null) { showError(); return; }
+    const a = primerNumero;
+    const b = parseFloat(pantalla);
+    const resultado = calcular(a, b, operador);
 
-    const symbols    = { '+': '+', '-': '−', '*': '×', '/': '÷' };
-    const expression = `${a} ${symbols[state.operator]} ${b} = ${formatResult(result)}`;
+    if (resultado === null) {
+        errorDivision();
+        return;
+    }
 
-    exprDisplay.textContent = expression;
-    state.current = formatResult(result);
-    updateDisplay(state.current);
+    const texto = formatear(resultado);
+    expresion.textContent = `${a} ${simbolos[operador]} ${b} = ${texto}`;
+    pantalla = texto;
+    mostrar(pantalla);
 
-    state.operator         = null;
-    state.firstOperand     = null;
-    state.waitingForSecond = false;
-};
+    operador = null;
+    primerNumero = null;
+    esperandoSegundo = false;
+}
 
-const handleClear = () => {
-    state.current          = '0';
-    state.operator         = null;
-    state.firstOperand     = null;
-    state.waitingForSecond = false;
-    exprDisplay.textContent = '';
-    updateDisplay('0');
-};
+// borrar ultimo digito 
+function backspace() {
+    if (esperandoSegundo) return;
+    pantalla = pantalla.length > 1 ? pantalla.slice(0, -1) : '0';
+    mostrar(pantalla);
+}
 
-const handleBackspace = () => {
-    if (state.waitingForSecond) return;
-    state.current = state.current.length > 1
-        ? state.current.slice(0, -1)
-        : '0';
-    updateDisplay(state.current);
-};
+// punto de entrada para botones y teclado 
+function manejarEntrada(valor) {
+    if (!valor) return;
 
-const showError = () => {
-    updateDisplay('Error');
-    exprDisplay.textContent = 'División por cero';
-    state.current          = '0';
-    state.operator         = null;
-    state.firstOperand     = null;
-    state.waitingForSecond = false;
-};
+    if (valor === 'C') return resetear();
+    if (valor === '=') return resolver();
+    if (valor === '.') return agregarPunto();
+    if (valor === 'Backspace') return backspace();
+    if (operadores.includes(valor)) return setOperador(valor);
+    if (/^\d$/.test(valor)) return agregarNumero(valor);
+}
 
-/* --- Botones --- */
-document.querySelectorAll('.btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const val = btn.dataset.value;
-        if (!val) return;
-        if (val === 'C')                         { handleClear();       return; }
-        if (val === '=')                         { handleEquals();      return; }
-        if (val === '.')                         { handleDecimal();     return; }
-        if (['+', '-', '*', '/'].includes(val)) { handleOperator(val); return; }
-        handleNumber(val);
-    });
+// eventos de botones 
+document.querySelectorAll('.btn').forEach((btn) => {
+    btn.addEventListener('click', () => manejarEntrada(btn.dataset.value));
 });
 
-/* --- Teclado --- */
+// eventos de teclado 
 document.addEventListener('keydown', (e) => {
-    const key = e.key;
-    if (/^\d$/.test(key))                              { handleNumber(key);   return; }
-    if (key === '.')                                    { handleDecimal();     return; }
-    if (['+', '-', '*', '/'].includes(key))            { handleOperator(key); return; }
-    if (key === 'Enter' || key === '=')                { handleEquals();      return; }
-    if (key === 'Escape' || key.toLowerCase() === 'c') { handleClear();      return; }
-    if (key === 'Backspace')                           { handleBackspace();   return; }
+    if (e.key === 'Enter') return manejarEntrada('=');
+    if (e.key === 'Escape') return manejarEntrada('C');
+    manejarEntrada(e.key);
 });
+
+// estado inicial 
+mostrar(pantalla);
