@@ -4,9 +4,14 @@ let operador = null;
 let primerNumero = null;
 let esperandoSegundo = false;
 
+// endpoints php
+const URL_GUARDAR = 'backend/guardar_operacion.php';
+const URL_ULTIMAS = 'backend/ultimas_operaciones.php';
+
 // elementos de la interfaz 
 const display = document.getElementById('display');
 const expresion = document.getElementById('display-expression');
+const historyList = document.getElementById('history-list');
 
 // helpers basicos 
 const operadores = ['+', '-', '*', '/'];
@@ -45,6 +50,52 @@ function calcular(a, b, op) {
     if (op === '*') return a * b;
     if (op === '/') return b === 0 ? null : a / b;
     return b;
+}
+
+function renderHistorial(items) {
+    if (!historyList) return;
+
+    if (!items || items.length === 0) {
+        historyList.innerHTML = '<li class="history-empty">sin operaciones</li>';
+        return;
+    }
+
+    historyList.innerHTML = items
+        .map((item) => {
+            const op = simbolos[item.operador] || item.operador;
+            return `<li class="history-item">${item.operando1} ${op} ${item.operando2} = ${item.resultado}</li>`;
+        })
+        .join('');
+}
+
+function cargarHistorial() {
+    if (!historyList) return;
+
+    fetch(URL_ULTIMAS)
+        .then((res) => res.json())
+        .then((data) => {
+            if (!data.ok) return renderHistorial([]);
+            renderHistorial(data.data);
+        })
+        .catch(() => {
+            historyList.innerHTML = '<li class="history-empty">no se pudo cargar</li>';
+        });
+}
+
+function guardarOperacion(a, b, op, resultado) {
+    return fetch(URL_GUARDAR, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            operando1: a,
+            operando2: b,
+            operador: op,
+            resultado
+        })
+    })
+        .then((res) => res.json())
+        .then(() => cargarHistorial())
+        .catch(() => {});
 }
 
 // entrada de numeros 
@@ -99,7 +150,8 @@ function resolver() {
 
     const a = primerNumero;
     const b = parseFloat(pantalla);
-    const resultado = calcular(a, b, operador);
+    const opActual = operador;
+    const resultado = calcular(a, b, opActual);
 
     if (resultado === null) {
         errorDivision();
@@ -107,9 +159,12 @@ function resolver() {
     }
 
     const texto = formatear(resultado);
-    expresion.textContent = `${a} ${simbolos[operador]} ${b} = ${texto}`;
+    expresion.textContent = `${a} ${simbolos[opActual]} ${b} = ${texto}`;
     pantalla = texto;
     mostrar(pantalla);
+
+    // solo se guarda al presionar igual
+    guardarOperacion(a, b, opActual, parseFloat(texto));
 
     operador = null;
     primerNumero = null;
@@ -149,3 +204,4 @@ document.addEventListener('keydown', (e) => {
 
 // estado inicial 
 mostrar(pantalla);
+cargarHistorial();
