@@ -17,15 +17,18 @@ const historyList = document.getElementById('history-list');
 const operadores = ['+', '-', '*', '/'];
 const simbolos = { '+': '+', '-': '−', '*': '×', '/': '÷' };
 
+// pinta en pantalla principal
 function mostrar(valor) {
     display.value = String(valor);
 }
 
+// corrige decimales largos
 function formatear(numero) {
     if (!isFinite(numero)) return 'Error';
     return String(parseFloat(numero.toPrecision(12)));
 }
 
+// vuelve al estado inicial
 function resetear() {
     pantalla = '0';
     operador = null;
@@ -44,6 +47,7 @@ function errorDivision() {
     esperandoSegundo = false;
 }
 
+// hace el calculo segun operador
 function calcular(a, b, op) {
     if (op === '+') return a + b;
     if (op === '-') return a - b;
@@ -52,6 +56,7 @@ function calcular(a, b, op) {
     return b;
 }
 
+// muestra el historial en el panel lateral
 function renderHistorial(items) {
     if (!historyList) return;
 
@@ -68,6 +73,7 @@ function renderHistorial(items) {
         .join('');
 }
 
+// pide al backend las ultimas 5 operaciones
 function cargarHistorial() {
     if (!historyList) return;
 
@@ -82,6 +88,7 @@ function cargarHistorial() {
         });
 }
 
+// guarda una operacion en backend
 function guardarOperacion(a, b, op, resultado) {
     return fetch(URL_GUARDAR, {
         method: 'POST',
